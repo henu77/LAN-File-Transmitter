@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
     <title>LAN File Transfer</title>
     <link rel="stylesheet" href="static/layui/css/layui.css">
     <style>
@@ -28,73 +29,114 @@
     <div class="form">
         <form class="layui-form">
             <div class="layui-form-item">
-                <label class="layui-form-label">选择网卡</label>
-                <div class="layui-input-block">
-                    <select name="nic_name" lay-verify="required">
-                        <option value=""></option>
-                    </select>
-                </div>
-            </div>
-            <div class="layui-form-item">
                 <label class="layui-form-label">发送方IP</label>
                 <div class="layui-input-block">
-                    <input type="text" name="sender_ip" required lay-verify="required" placeholder="请输入发送方IP"
-                           autocomplete="off" class="layui-input">
-                </div>
-            </div>
-            <div class="layui-form-item">
-                <label class="layui-form-label">发送方端口</label>
-                <div class="layui-input-block">
-                    <input type="text" name="sender_port" required lay-verify="required" placeholder="请输入发送方端口"
+                    <input type="text" id="sender_ip" name="sender_ip" required lay-verify="required"
+                           placeholder="请输入发送方IP"
                            autocomplete="off" class="layui-input">
                 </div>
             </div>
             <div class="layui-form-item">
                 <label class="layui-form-label">接收方IP</label>
                 <div class="layui-input-block">
-                    <input type="text" name="receiver_ip" required lay-verify="required" placeholder="请输入接收方IP"
-                           autocomplete="off" class="layui-input">
-                </div>
-            </div>
-            <div class="layui-form-item">
-                <label class="layui-form-label">接收方端口</label>
-                <div class="layui-input-block">
-                    <input type="text" name="receiver_port" required lay-verify="required"
-                           placeholder="请输入接收方端口"
+                    <input type="text" id="receiver_ip" name="receiver_ip" required lay-verify="required"
+                           placeholder="请输入接收方IP"
                            autocomplete="off" class="layui-input">
                 </div>
             </div>
             <div class="layui-form-item">
                 <label class="layui-form-label">选择文件</label>
                 <div class="layui-input-inline">
-                    <input type="text" name="file_path" required lay-verify="required" placeholder="请选择文件"
+                    <input type="text" id="file_path" name="file_path" required lay-verify="required"
+                           placeholder="请选择文件"
                            autocomplete="off" class="layui-input">
                 </div>
                 <div class="layui-input-inline">
-                    <button type="button" class="layui-btn layui-btn-normal">选择文件</button>
+                    <button onclick="choose_file()" type="button" class="layui-btn layui-btn-normal">
+                        选择文件
+                    </button>
                 </div>
+            </div>
+            <div class="layui-form-item" style="display: none;">
+                <input type="file" id="fileInput" name="file" onchange="handleFileSelection()">
             </div>
             <div class="layui-form-item">
                 <div class="layui-input-block">
-                    <button class="layui-btn layui-btn-normal" lay-submit lay-filter="formDemo">开始发送</button>
-                    <button type="reset" class="layui-btn layui-btn-primary">取消</button>
+                    <button class="layui-btn layui-btn-normal" lay-submit lay-filter="submit">开始发送</button>
+                    <button class="layui-btn layui-btn-primary" onclick="cancel_but()">取消</button>
                 </div>
             </div>
         </form>
-        <div class="layui-progress layui-progress-big" lay-showPercent="true">
-            <div class="layui-progress-bar layui-bg-blue" lay-percent="80%"></div>
+        <div class="layui-block">
+            <div class="layui-progress layui-progress-big" lay-showPercent="true">
+                <div class="layui-progress-bar layui-bg-blue" lay-percent="80%"></div>
+            </div>
+        </div>
+        <div class="layui-block" style="margin-top: 1rem">
+            传输速度：<span id="speed">0</span> MB/s
+            剩余时间：<span id="time">0</span> s
         </div>
     </div>
 </div>
+
 </body>
 <script src="static/layui/layui.js"></script>
+<script src="static/request_util.js"></script>
 <script>
+
+    function cancel_but() {
+        window.location.href = '/';
+    }
+
+    document.getElementById('sender_ip').value = localStorage.getItem('sender_ip');
+    document.getElementById('sender_ip').readOnly = true;
+
+    function choose_file() {
+        // 触发文件选择框点击事件
+        document.getElementById('fileInput').click();
+    }
+
+    function handleFileSelection() {
+        const fileInput = document.getElementById('fileInput');
+        const selectedFile = fileInput.files[0];
+        if (selectedFile) {
+            console.log('Selected File:', selectedFile);
+            console.log(selectedFile);
+            document.getElementById('file_path').value = selectedFile.name;
+        }
+    }
+
     layui.use('form', function () {
         var form = layui.form;
 
         //监听提交
-        form.on('submit(formDemo)', function (data) {
+        form.on('submit(submit)', function (data) {
+
+            console.log(JSON.stringify(data.field))
+            const fileInput = document.getElementById('fileInput');
+            const selectedFile = fileInput.files[0];
+
             layer.msg(JSON.stringify(data.field));
+            var formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('sender_ip', data.field.sender_ip);
+            formData.append('receiver_ip', data.field.receiver_ip);
+            formData.append('file_size', selectedFile.size);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/send_file');
+            xhr.send(formData);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        console.log(xhr.responseText);
+                        layer.msg(xhr.responseText);
+                    } else {
+                        console.log('发生错误:', xhr.status);
+                        layer.msg('发生错误:' + xhr.status);
+                    }
+                }
+            };
             return false;
         });
     });

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ch">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+    <title>选择网卡</title>
+    <link rel="stylesheet" href="static/layui/css/layui.css">
+    <style>
+        html {
+            font-size: 16px; /* 根元素字体大小 */
+        }
+
+        .layui-main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; /* 设置高度为视口高度，使其垂直居中 */
+        }
+
+        .form {
+            /* 根据需要设置子元素的样式 */
+        }
+
+    </style>
+</head>
+<body>
+<div class="layui-main">
+    <div class="form">
+        <form class="layui-form">
+            <div class="layui-form-item">
+                <label class="layui-form-label">选择网卡</label>
+                <div class="layui-input-block">
+                    <select id="nic_name" name="nic_name" lay-filter="select_filter" lay-verify="required">
+                        <option value=""></option>
+                    </select>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">发送方IP</label>
+                <div class="layui-input-block">
+                    <input type="text" id="sender_ip" name="sender_ip" required lay-verify="required"
+                           placeholder="请输入发送方IP"
+                           autocomplete="off" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-input-block">
+                    <button class="layui-btn layui-btn-normal" lay-submit lay-filter="submit">确定</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+</body>
+<script src="static/layui/layui.js"></script>
+<script src="static/request_util.js"></script>
+<script>
+    layui.use('form', function () {
+        var form = layui.form;
+        //监听提交
+        form.on('submit(submit)', function (data) {
+            console.log(data.field);
+            sender_ip = document.getElementById('sender_ip');
+            // 把数据存储到 localStorage 中
+            localStorage.setItem('sender_ip', sender_ip.value);
+
+            // 开启监听sender_ip
+            fetchData('/start_listen_sender_ip?local_ip=' + sender_ip.value, {
+                local_ip: sender_ip.value
+            }).then(function (data) {
+                console.log(data);
+            }).catch(function (error) {
+                console.log(error);
+            });
+
+            // 跳转到index.html
+            window.location.href = '/index';
+            return false;
+        });
+        form.on('select(select_filter)', async function (data) {
+            sender_ip = document.getElementById('sender_ip');
+            sender_ip.value = data.value;
+            sender_ip.readOnly = true;
+
+        });
+
+        // 更新 select 选项的函数
+        window.updateSelectOptions = async function updateSelectOptions() {
+            try {
+                // 调用 fetchData 函数发送请求
+                // 处理服务器响应
+                var newOptions = await fetchData('/get_all_nic_info');
+
+                // 获取原始 select 元素
+                var selectElement = document.getElementById('nic_name');
+
+                // 清空原有选项
+                selectElement.innerHTML = '';
+
+                // 添加新的选项
+                newOptions.forEach(function (option) {
+                    var optionElement = document.createElement('option');
+                    optionElement.value = option.ip;
+                    optionElement.text = option.name + '(' + option.ip + ')';
+                    selectElement.appendChild(optionElement);
+                });
+
+                // 重新渲染 form（特别是 select 元素）
+                form.render('select');
+                document.getElementById('sender_ip').value = newOptions[0].ip;
+            } catch (error) {
+                console.log('发生错误:', error);
+                layui.layer.msg('发生错误:' + error);
+            }
+        };
+        window.updateSelectOptions();
+    });
+</script>
+</html>

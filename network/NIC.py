@@ -1,4 +1,9 @@
+import socket
+
 import psutil
+
+import config
+from model.Response import Response
 
 
 class NIC(object):
@@ -20,6 +25,17 @@ class NIC(object):
                f"网卡速度: {self.speed}\n" \
                f"MTU: {self.mtu}"
 
+    def to_json(self):
+        return {
+            "name": self.name,
+            "mac": self.mac,
+            "ip": self.ip,
+            "netmask": self.netmask,
+            "isup": self.isup,
+            "speed": self.speed,
+            "mtu": self.mtu
+        }
+
 
 def get_nic_list():
     global mac
@@ -37,5 +53,12 @@ def get_nic_list():
                     nic_list.append(
                         NIC(interface, mac, item.address,
                             item.netmask, stats.isup, stats.speed,
-                            stats.mtu))
-    return nic_list
+                            stats.mtu).to_json())
+    return Response(config.SUCCESS_CODE, '获取网卡信息列表成功', nic_list).to_json()
+
+
+def find_unused_port(ip='localhost'):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((ip, 0))
+        _, port = s.getsockname()
+    return Response(config.ERROR_CODE, '获取未使用端口成功', {'port': port}).to_json()
