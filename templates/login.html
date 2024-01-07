@@ -67,7 +67,7 @@
             localStorage.setItem('sender_ip', sender_ip.value);
 
             // 开启监听sender_ip
-            fetchData('/start_listen_sender_ip?local_ip=' + sender_ip.value, {
+            fetch_data_by_get('/start_listen_sender_ip?local_ip=' + sender_ip.value, {
                 local_ip: sender_ip.value
             }).then(function (data) {
                 console.log(data);
@@ -91,7 +91,7 @@
             try {
                 // 调用 fetchData 函数发送请求
                 // 处理服务器响应
-                var newOptions = await fetchData('/get_all_nic_info');
+                var newOptions = await fetch_data_by_get('/get_all_nic_info');
 
                 // 获取原始 select 元素
                 var selectElement = document.getElementById('nic_name');

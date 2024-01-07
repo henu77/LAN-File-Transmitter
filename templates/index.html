@@ -49,7 +49,9 @@
                 <div class="layui-input-inline">
                     <input type="text" id="file_path" name="file_path" required lay-verify="required"
                            placeholder="请选择文件"
-                           autocomplete="off" class="layui-input">
+                           autocomplete="off"
+                           readonly
+                           class="layui-input">
                 </div>
                 <div class="layui-input-inline">
                     <button onclick="choose_file()" type="button" class="layui-btn layui-btn-normal">
@@ -63,18 +65,18 @@
             <div class="layui-form-item">
                 <div class="layui-input-block">
                     <button class="layui-btn layui-btn-normal" lay-submit lay-filter="submit">开始发送</button>
-                    <button class="layui-btn layui-btn-primary" onclick="cancel_but()">取消</button>
+                    <a class="layui-btn layui-btn-primary" onclick="cancel_but()">重选网卡</a>
                 </div>
             </div>
         </form>
         <div class="layui-block">
-            <div class="layui-progress layui-progress-big" lay-showPercent="true">
-                <div class="layui-progress-bar layui-bg-blue" lay-percent="80%"></div>
+            <div class="layui-progress layui-progress-big" lay-showPercent="true" lay-filter="progress">
+                <div class="layui-progress-bar layui-bg-blue" lay-percent="80.2%"></div>
             </div>
         </div>
         <div class="layui-block" style="margin-top: 1rem">
-            传输速度：<span id="speed">0</span> MB/s
-            剩余时间：<span id="time">0</span> s
+            传输速度：<span id="speed">0</span> MB/s &nbsp;&nbsp;&nbsp;&nbsp;
+            所需时间：<span id="time">0</span> s
         </div>
     </div>
 </div>
@@ -85,6 +87,7 @@
 <script>
 
     function cancel_but() {
+        console.log('cancel_but');
         window.location.href = '/';
     }
 
@@ -100,45 +103,73 @@
         const fileInput = document.getElementById('fileInput');
         const selectedFile = fileInput.files[0];
         if (selectedFile) {
-            console.log('Selected File:', selectedFile);
-            console.log(selectedFile);
             document.getElementById('file_path').value = selectedFile.name;
         }
     }
 
-    layui.use('form', function () {
+    layui.use(['form', 'element'], function () {
         var form = layui.form;
-
+        var element = layui.element;
         //监听提交
         form.on('submit(submit)', function (data) {
 
             console.log(JSON.stringify(data.field))
             const fileInput = document.getElementById('fileInput');
             const selectedFile = fileInput.files[0];
-
-            layer.msg(JSON.stringify(data.field));
             var formData = new FormData();
             formData.append('file', selectedFile);
             formData.append('sender_ip', data.field.sender_ip);
             formData.append('receiver_ip', data.field.receiver_ip);
             formData.append('file_size', selectedFile.size);
-
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/send_file');
-            xhr.send(formData);
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === 4) {
-                    if (xhr.status === 200) {
-                        console.log(xhr.responseText);
-                        layer.msg(xhr.responseText);
-                    } else {
-                        console.log('发生错误:', xhr.status);
-                        layer.msg('发生错误:' + xhr.status);
-                    }
-                }
-            };
+            sendFile(formData);
             return false;
         });
+        const sendFile = async (formData) => {
+            const intervalId = startInterval();
+            try {
+                const response = await fetch('/send_file', {
+                    method: 'POST',
+                    body: formData,
+                })
+                if (response.ok) {
+                    var result = await response.text();
+                    result = JSON.parse(result);
+                    layer.msg(result.message);
+                } else {
+                    layer.msg('发生错误: ' + response.status);
+                    clearInterval(intervalId);
+                }
+            } catch (error) {
+                console.error('请求发生错误:', error);
+                layer.msg('请求发生错误，请查看控制台');
+                clearInterval(intervalId);
+            }
+        };
+
+
+        function startInterval() {
+            var intervalId = setInterval(async function () {
+                // 在这里执行你需要的操作
+                const res = await fetch_data_by_get('/get_send_file_progress');
+                const res2 = await fetch_data_by_get('/get_send_file_speed_required_time');
+                console.log(res);
+                element.progress('progress', res + '%');
+                const speed = res2.speed;
+                const time = res2.time;
+                document.getElementById('speed').innerText = speed;
+                document.getElementById('time').innerText = time;
+                // 检查是否需要关闭定时器
+                if (res === 100) {
+                    clearInterval(intervalId);
+                    console.log('Interval stopped.');
+                }
+            }, 200);
+
+            // 返回intervalId以便后续取消定时器
+            return intervalId;
+        }
     });
+
+
 </script>
 </html>
